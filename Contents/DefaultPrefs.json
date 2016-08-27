@@ -1,36 +1,14 @@
 [
   {
-    "id": "episodeplot",
-    "label": "Episode Plot Summary Source: ",
-    "type": "enum",
-    "values": [
-      "",
-      "The TV Database",
-      "The Movie Database"
-    ],
-    "default": "The TV Database"
+    "id":"extras",
+    "label":"Find trailers and extras automatically (Plex Pass required)",
+    "type":"bool",
+    "default":"true"
   },
   {
-    "id": "seriesplot",
-    "label": "Series Plot Summary Source: ",
-    "type": "enum",
-    "values": [
-      "",
-      "The TV Database",
-      "The Movie Database"
-    ],
-    "default": "The TV Database"
-  },
-  {
-      "id": "ratings",
-      "label": "Ratings Source:",
-      "type": "enum",
-      "values": [
-          "",
-          "The TV Database",
-          "The Movie Database",
-          "Average of All Available Scores",
-      ],
-      "default": "Average of All Available Scores"
+    "id": "native_subs",
+    "label": "Include extras with subtitles in Library language",
+    "type": "bool",
+    "default": "false"
   }
 ]
