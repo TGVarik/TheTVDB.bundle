@@ -839,11 +839,13 @@ class TVDBAgent(Agent.TV_Shows):
     @parallelize
     def UpdateEpisodes():
 
+      use_dvd_order = metadata.id in [int(v) for v in Prefs['dvd_order'].split(',')];
+
       for episode_info in episode_data:
 
         # Get the season and episode numbers
-        season_num = str(episode_info.get('airedSeason', ''))
-        episode_num = str(episode_info.get('airedEpisodeNumber', ''))
+        season_num = str(episode_info.get('dvdSeason' if use_dvd_order else 'airedSeason', ''))
+        episode_num = str(episode_info.get('dvdEpisodeNumber' if use_dvd_order else 'airedEpisodeNumber', ''))
 
         if media is not None:
           # Also get the air date for date-based episodes.
@@ -896,6 +898,7 @@ class TVDBAgent(Agent.TV_Shows):
             return
 
           # Need to reassign these because of parallel tasks
+          # These are only used to fetch extras, so ignore dvd_order
           season_num = tvdb_episode_details['airedSeason'] or tvdb_english_episode_details['airedSeason']
           episode_num = tvdb_episode_details['airedEpisodeNumber'] or tvdb_english_episode_details['airedEpisodeNumber']
 

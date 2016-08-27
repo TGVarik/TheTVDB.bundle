@@ -10,5 +10,11 @@
     "label": "Include extras with subtitles in Library language",
     "type": "bool",
     "default": "false"
+  },
+  {
+    "id": "dvd_order",
+    "label": "Use DVD order for these series (comma-separated TVDB series IDs)",
+    "type": "text",
+    "default": ""
   }
 ]
