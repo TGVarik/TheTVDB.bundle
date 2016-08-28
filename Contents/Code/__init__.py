@@ -131,7 +131,7 @@ HEADERS = {'User-agent': 'Plex/Nine'}
 def setJWT():
 
   try:
-    jwtResp = JSON.ObjectFromString(HTTP.Request(TVDB_LOGIN_URL, data=JSON.StringFromObject(dict(apikey=TVDB_API_KEY)), headers={'Content-type': 'application/json'}).content)
+    jwtResp = JSON.ObjectFromString(HTTP.Request(TVDB_LOGIN_URL, data=JSON.StringFromObject(dict(apikey=TVDB_API_KEY)), headers={'Content-type': 'application/json'}, cacheTime=0).content)
   except Exception, e:
     Log("JWT Error: (%s) - %s" % (e, e.message))
     return
@@ -152,15 +152,14 @@ def GetResultFromNetwork(url, fetchContent=True, additionalHeaders=None, data=No
     local_headers = HEADERS.copy()
     local_headers.update(additionalHeaders)
 
-    # Need to disable caching of TVDB URLs because language is in the header which doesn't affect cache key
     try:
-      result = HTTP.Request(url, headers=local_headers, timeout=60, data=data, cacheTime=cacheTime)
+      result = HTTP.Request(url, headers=local_headers, timeout=60, data=data, cacheTime=cacheTime, immediate=fetchContent)
     except Exception:
       try:
         setJWT()
         local_headers = HEADERS.copy()
         local_headers.update(additionalHeaders)
-        result = HTTP.Request(url, headers=local_headers, timeout=60, data=data, cacheTime=cacheTime)
+        result = HTTP.Request(url, headers=local_headers, timeout=60, data=data, cacheTime=cacheTime, immediate=fetchContent)
       except:
         return None
 
