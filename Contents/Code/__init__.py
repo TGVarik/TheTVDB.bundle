@@ -838,7 +838,7 @@ class TVDBAgent(Agent.TV_Shows):
     @parallelize
     def UpdateEpisodes():
 
-      use_dvd_order = metadata.id in [int(v) for v in Prefs['dvd_order'].split(',')];
+      use_dvd_order = int(metadata.id) in [int(v) for v in Prefs['dvd_order'].split(',')];
 
       for episode_info in episode_data:
 
