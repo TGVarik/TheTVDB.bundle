@@ -125,6 +125,10 @@ ROMAN_NUMERAL_MAP = {
 GOOD_MATCH_THRESHOLD = 98 # Short circuit once we find a match better than this.
 ACCEPTABLE_MATCH_THRESHOLD = 80
 
+# UMP
+UMP_BASE_URL = 'http://127.0.0.1:32400/services/ump/matches?%s'
+UMP_MATCH_URL = 'type=2&title=%s&year=%s&lang=%s&manual=%s'
+
 HEADERS = {'User-agent': 'Plex/Nine'}
 
 
@@ -154,15 +158,22 @@ def GetResultFromNetwork(url, fetchContent=True, additionalHeaders=None, data=No
 
     try:
       result = HTTP.Request(url, headers=local_headers, timeout=60, data=data, cacheTime=cacheTime, immediate=fetchContent)
-    except Exception:
-      try:
-        setJWT()
-        local_headers = HEADERS.copy()
-        local_headers.update(additionalHeaders)
-        result = HTTP.Request(url, headers=local_headers, timeout=60, data=data, cacheTime=cacheTime, immediate=fetchContent)
-      except:
+    except Ex.HTTPError, e:
+      Log('HTTPError %s: %s' % (e.code, e.message))
+      if (e.code == 401):
+        Log('Problem with authentication, trying again...')
+        try:
+          setJWT()
+          local_headers = HEADERS.copy()
+          local_headers.update(additionalHeaders)
+          result = HTTP.Request(url, headers=local_headers, timeout=60, data=data, cacheTime=cacheTime, immediate=fetchContent)
+        except:
+          return None
+      else:
         return None
-
+    except Exception, e:
+      Log('Problem with the request: %s' % e.message)
+      return None
     if fetchContent:
       try:
         result = result.content
@@ -375,6 +386,27 @@ class TVDBAgent(Agent.TV_Shows):
       except Exception:
         Log('There was a problem attempting an exact TVDB match in %s (lang: en)' % mediaShowYear)
 
+  def perform_ump_tv_search(self, results, media, lang, manual):
+    ump_match_uri = UMP_MATCH_URL % (String.Quote(media.show), media.year if media.year else '', lang, 1 if manual else 0)
+    ump_movie = XML.ElementFromURL(UMP_BASE_URL % ump_match_uri, cacheTime=CACHE_1DAY)
+
+    for video in ump_movie.xpath('//Directory'):
+
+      try:
+        video_id = video.get('ratingKey')[video.get('ratingKey').rfind('/') + 1:]
+        score = int(video.get('score'))
+      except Exception, e:
+        continue
+
+      # Deal with year
+      year = None
+      try: year = int(video.get('year'))
+      except: pass
+
+      result = MetadataSearchResult(id=video_id, name=video.get('title'), year=year, lang=lang, thumb=video.get('thumb'), score=score)
+      Log("UMP: %s" % repr(result))
+      results.Append(result)
+
   def search(self, results, media, lang, manual=False):
 
     if media.primary_agent == 'com.plexapp.agents.themoviedb':
@@ -413,7 +445,7 @@ class TVDBAgent(Agent.TV_Shows):
         break
       Log('Top GUID result: ' + str(results[i]))
 
-    if not len(results) or results[0].score <= GOOD_MATCH_THRESHOLD:
+    if not len(results) or results[0].score <= GOOD_MATCH_THRESHOLD or manual:
       # No good-enough matches in GUID search, try word matches.
       self.searchByWords(results, lang, media.show, media.year)
       self.dedupe(results)
@@ -424,31 +456,37 @@ class TVDBAgent(Agent.TV_Shows):
           break
         Log('Top GUID+name result: ' + str(results[i]))
 
-    mediaYear = ''
-    if media.year is not None:
-      mediaYear = ' (' + media.year + ')'
-    w = media.show.lower().split(' ')
-    keywords = ''
-    for k in EXTRACT_AS_KEYWORDS:
-      if k.lower() in w:
-        keywords = keywords + k + '+'
-    cleanShow = self.util_clean_show(media.show, SCRUB_FROM_TITLE_SEARCH_KEYWORDS)
-    cs = cleanShow.split(' ')
-    cleanShow = ''
-    for x in cs:
-      cleanShow = cleanShow + 'intitle:' + x + ' '
+    if not len(results) or results[0].score <= GOOD_MATCH_THRESHOLD or manual:
+      mediaYear = ''
+      if media.year is not None:
+        mediaYear = ' (' + media.year + ')'
+      w = media.show.lower().split(' ')
+      keywords = ''
+      for k in EXTRACT_AS_KEYWORDS:
+        if k.lower() in w:
+          keywords = keywords + k + '+'
+      cleanShow = self.util_clean_show(media.show, SCRUB_FROM_TITLE_SEARCH_KEYWORDS)
+      cs = cleanShow.split(' ')
+      cleanShow = ''
+      for x in cs:
+        cleanShow = cleanShow + 'intitle:' + x + ' '
 
-    cleanShow = cleanShow.strip()
-    origShow = media.show
-    SVmediaShowYear = {'normal': String.Quote((origShow + mediaYear).encode('utf-8'), usePlus=True).replace('intitle%3A', 'intitle:'),
-                       'clean': String.Quote((cleanShow + mediaYear).encode('utf-8'), usePlus=True).replace('intitle%3A','intitle:'),
-                       'normalNoYear': String.Quote(origShow.encode('utf-8'), usePlus=True).replace('intitle%3A', 'intitle:')}
+      cleanShow = cleanShow.strip()
+      origShow = media.show
+      SVmediaShowYear = {'normal': String.Quote((origShow + mediaYear).encode('utf-8'), usePlus=True).replace('intitle%3A', 'intitle:'),
+                         'clean': String.Quote((cleanShow + mediaYear).encode('utf-8'), usePlus=True).replace('intitle%3A','intitle:'),
+                         'normalNoYear': String.Quote(origShow.encode('utf-8'), usePlus=True).replace('intitle%3A', 'intitle:')}
 
-    #try an exact tvdb match
-    self.exact_tvdb_match_with_fallback(SVmediaShowYear['normal'], media, results, lang)
+      #try an exact tvdb match
+      self.exact_tvdb_match_with_fallback(SVmediaShowYear['normal'], media, results, lang)
 
-    if manual and SVmediaShowYear['normal'] != SVmediaShowYear['normalNoYear']:
-      self.exact_tvdb_match_with_fallback(SVmediaShowYear['normalNoYear'], media, results, lang)
+      if manual and SVmediaShowYear['normal'] != SVmediaShowYear['normalNoYear']:
+        self.exact_tvdb_match_with_fallback(SVmediaShowYear['normalNoYear'], media, results, lang)
+
+    if not len(results) or results[0].score <= GOOD_MATCH_THRESHOLD or manual:
+      Log('---- UMP RESULTS MAP ----')
+      try: self.perform_ump_tv_search(results, media, lang, manual)
+      except: Log('Unable to get any results from UMP for %s, no worries...' % media.name)
 
     self.dedupe(results)
 
@@ -462,11 +500,11 @@ class TVDBAgent(Agent.TV_Shows):
     years = resultMap.keys()
     years.sort(reverse=True)
 
-    #bump the score of newer dupes
+    # bump the score of newer dupes
     i=0
     for y in years[:-1]:
-      if resultMap[y].score <= resultMap[years[i+1]].score:
-        resultMap[y].score = resultMap[years[i+1]].score + 1
+      if resultMap[y].score == resultMap[years[i]].score:
+        resultMap[y].score = resultMap[y].score + 1
 
     for i,r in enumerate(results):
       if i > 10:
