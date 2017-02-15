@@ -1,3 +1,9 @@
+## DEPRECATED 2017-02-13
+
+As of Plex Media Server v1.4.1.3362-77c6a4f80, the TheTVDB.bundle that ships with PMS includes DVD-Order functionality. Please do not use this plugin anymore.
+
+#### TheTVDB.bundle
+
 Replace the bundle that comes with Plex with this one. 
 On linux, that's: 
 
