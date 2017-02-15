@@ -190,6 +190,10 @@ def Start():
 def metadata_people(people_list, meta_people_obj):
   try:
     have_cleared = False
+
+    if len(people_list) and 'sortOrder' in people_list[0]:
+      people_list.sort(key=lambda x: x['sortOrder'])
+
     for person in people_list:
 
       if not have_cleared:
@@ -876,7 +880,8 @@ class TVDBAgent(Agent.TV_Shows):
     @parallelize
     def UpdateEpisodes():
 
-      use_dvd_order = int(metadata.id) in [int(v) for v in Prefs['dvd_order'].split(',')];
+      use_dvd_order = media.settings and media.settings.has_key('showOrdering') and media.settings['showOrdering'] == 'dvd'
+      Log('Show ordering is DVD: ' + str(use_dvd_order))
 
       for episode_info in episode_data:
 
